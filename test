@@ -1,0 +1,114 @@
+import numpy as np
+import matplotlib.pyplot as plt
+
+from models import pendulum as model
+from integrators import explicit_euler, rk4
+
+# ------------------------------------------------------------
+# Simulation function (modular)
+# ------------------------------------------------------------
+def simulate(model, integrator, initial_state, params, dt, sim_time):
+    n_steps = int(sim_time / dt) + 1
+    time = np.arange(n_steps) * dt
+    state = np.zeros((2, n_steps))
+    state[:, 0] = initial_state
+
+    for step, t in enumerate(time[:-1]):
+        state[:, step + 1] = integrator(
+            model.dynamics, t, state[:, step], params, dt
+        )
+
+    return time, state
+
+
+# ------------------------------------------------------------
+# Energy function
+# ------------------------------------------------------------
+def compute_energy(model, state, params):
+    return model.calculate_energy(state, params)
+
+
+# ------------------------------------------------------------
+# Pendulum parameters
+# ------------------------------------------------------------
+params = {
+    "gravity": 9.81,
+    "length": 1,
+    "mass": 0.2,
+    "damping_coeff": 0.0,
+}
+
+initial_state = np.array([np.pi / 4, 0.0])
+sim_time = 5.0
+
+# ------------------------------------------------------------
+# Choose integrator
+# ------------------------------------------------------------
+integrator = rk4   # or explicit_euler
+
+
+# ------------------------------------------------------------
+# Run main simulation
+# ------------------------------------------------------------
+dt = 1e-5
+time, state = simulate(model, integrator, initial_state, params, dt, sim_time)
+potential, kinetic = compute_energy(model, state, params)
+
+# ------------------------------------------------------------
+# Plot energy for main simulation
+# ------------------------------------------------------------
+plt.figure()
+plt.plot(time, potential, label="Potential")
+plt.plot(time, kinetic, label="Kinetic")
+plt.plot(time, potential + kinetic, label="Total")
+plt.xlabel("Time (s)")
+plt.ylabel("Energy (J)")
+plt.title("Pendulum Energy (dt = 1e-5)")
+plt.legend()
+plt.tight_layout()
+plt.show()
+
+
+# ------------------------------------------------------------
+# Stability Sweep
+# ------------------------------------------------------------
+timesteps = [1e-5, 1e-4, 1e-3, 1e-2]
+
+print("\nStability Results:")
+for dt in timesteps:
+    time, state = simulate(model, integrator, initial_state, params, dt, sim_time)
+    potential, kinetic = compute_energy(model, state, params)
+    total_energy = potential + kinetic
+
+    # Stability check: does energy blow up?
+    stable = np.all(np.isfinite(total_energy)) and np.max(total_energy) < 10 * total_energy[0]
+
+    print(f"dt = {dt:.0e} → {'Stable' if stable else 'UNSTABLE'}")
+
+    # Plot energy for each dt
+    plt.figure()
+    plt.plot(time, total_energy)
+    plt.title(f"Total Energy (dt = {dt})")
+    plt.xlabel("Time (s)")
+    plt.ylabel("Energy (J)")
+    plt.tight_layout()
+    plt.show()
+
+
+# ------------------------------------------------------------
+# Timing comparison
+# ------------------------------------------------------------
+import timeit
+
+euler_time = timeit.timeit(
+    lambda: explicit_euler(model.dynamics, 0, initial_state, params, dt),
+    number=1000
+)
+
+rk4_time = timeit.timeit(
+    lambda: rk4(model.dynamics, 0, initial_state, params, dt),
+    number=1000
+)
+
+print(f"\nEuler time: {euler_time:.6f}s")
+print(f"RK4 time: {rk4_time:.6f}s")
