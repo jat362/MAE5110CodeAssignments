@@ -9,24 +9,79 @@ import numpy as np
 
 
 def generate_params():
-    pass
+    params = {
+        "gravity": 9.81,  
+        "length": 1.0,  
+        "mass": 1.0,  # kg
+        "incline": 0.06,  # radians
+        "angle_of_attack": np.pi / 8,  # half-angle between legs (rad), u2
+        "ankle_torque": 0.0,  # ankle torque (Nm), u1, default off
+    }
+    return params
 
 
 def dynamics(t, state, params):
-    # TODO: implement the state derivative.
-    return np.array([0.0, 0.0])
+    gravity = params["gravity"]
+    length = params["length"]
+    mass = params["mass"]
+    ankle_torque = params.get("ankle_torque", 0.0)
+
+    angle = state[0]
+    angular_velocity = state[1]
+
+    # Undriven inverted-pendulum swing plus ankle torque
+    angular_acceleration = (mass*gravity*length*np.sin(angle)+ankle_torque)/(mass*length**2)
+
+    state_derivative = np.array([angular_velocity, angular_acceleration])
+    return state_derivative
 
 
 def event_guard(previous_state, next_state, params):
-    pass
+    # Detects if a touchdown event happened between 2 consecutive integrator samples, 
+    # checking if theta crossed the current touchdown angle 
+    # theta_TD = incline +/- angle_of_attack over the step
 
+    incline = params["incline"]
+    alpha = params["angle_of_attack"]
+
+    theta_fwd = incline + alpha
+    theta_bwd = incline - alpha
+
+    theta_prev = previous_state[0]
+    theta_next = next_state[0]
+
+    crossed_forward = theta_prev < theta_fwd <= theta_next
+    crossed_backward = theta_prev > theta_bwd >= theta_next
+
+    return bool(crossed_forward or crossed_backward)
+    # Returns true if either the forward or backward guard was crossed this step, false otherwise
 
 def event_dynamics(state, params):
-    pass
+    # Instantaneous plastic collision reset at touchdown
+    theta, angular_velocity = state
+    alpha = params["angle_of_attack"]
+
+    if angular_velocity >= 0:
+        theta_new = theta - 2 * alpha
+    else:
+        theta_new = theta + 2 * alpha
+
+    angular_velocity_new = angular_velocity * np.cos(2 * alpha)
+    return np.array([theta_new, angular_velocity_new])
 
 
 def calculate_energy(state, params):
-    pass
+    # 
+    gravity = params["gravity"]
+    length = params["length"]
+    mass = params["mass"]
+
+    angle = state[0]
+    angular_velocity = state[1]
+
+    kinetic_energy = 0.5 * mass * (length * angular_velocity) ** 2
+    potential_energy = mass * gravity * length * np.cos(angle)
+    return kinetic_energy, potential_energy
 
 
 def visualize(
