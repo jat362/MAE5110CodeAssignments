@@ -52,8 +52,8 @@ def draw_frame(index):
     ax.set_title(f"t = {time_traj[index]:.2f} s")
 
 
-# Simulate at a small timestep, but render only 25 frames per second.
-fps = 25
+# Simulate at a small timestep, 10 frames/second.
+fps = 10
 frame_stride = round(1 / (fps * timestep))
 frame_indices = list(range(0, time_traj.size, frame_stride))
 if frame_indices[-1] != time_traj.size - 1:

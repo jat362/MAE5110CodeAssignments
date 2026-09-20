@@ -1,9 +1,3 @@
-"""InvertedPendulumWalker starter model, with visualization provided.
-
-Implement the model functions for Assignment 2. The visualizer works independently
-of those functions; it draws a supplied state without advancing the simulation.
-"""
-
 import matplotlib.pyplot as plt
 import numpy as np
 
@@ -13,7 +7,7 @@ def generate_params():
         "gravity": 9.81,  
         "length": 1.0,  
         "mass": 1.0,  # kg
-        "incline": 0.06,  # radians
+        "incline": 0.06,  # rad
         "angle_of_attack": np.pi / 8,  # half-angle between legs (rad), u2
         "ankle_torque": 0.0,  # ankle torque (Nm), u1, default off
     }
@@ -71,7 +65,6 @@ def event_dynamics(state, params):
 
 
 def calculate_energy(state, params):
-    # 
     gravity = params["gravity"]
     length = params["length"]
     mass = params["mass"]
