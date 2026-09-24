@@ -86,42 +86,7 @@ def visualize(
     stance_position=(0.0, 0.0),
     view_limits=None,
 ):
-    """Draw one walker pose and return a Matplotlib Axes.
 
-    Parameters
-    ----------
-    state : array-like, shape (2,)
-        [theta, angular_velocity], in radians and radians/second. Theta is
-        measured clockwise from upward vertical; positive x points right.
-    params : dict
-        ``length`` is the leg length in meters. ``incline`` is the ground's
-        downhill slope angle in radians (positive slopes descend to the right).
-        ``angle_of_attack`` is HALF the angle between the stance and forward swing
-        legs, in radians; it is needed only when show_swing=True.
-        ``ankle_torque`` (optional, default 0) is displayed in N m, with positive
-        torque acting in the positive theta direction. Other keys are ignored.
-    ax : matplotlib.axes.Axes, optional
-        Axes to clear and reuse. If omitted, create a figure. This function
-        neither shows nor saves it: use plt.show() or ax.figure.savefig(...).
-    show_swing : bool
-        Draw a straight forward swing leg at the supplied angle_of_attack. Set False
-        while the swing leg is held clear or while balancing. Swing motion is
-        not part of the two-state model and is not inferred from theta.
-    stance_position : pair of floats
-        Current stance foot's (x, y) in meters, default (0, 0). The two-state
-        model does not track translation; supply foot positions if desired.
-        Ground passes through this point at the supplied incline.
-    view_limits : (xmin, xmax, ymin, ymax), optional
-        Fixed camera bounds in meters. By default the view follows the stance
-        foot with bounds that fit both legs at any angle. Supply the same bounds
-        each frame for a stationary world view.
-
-    Notes
-    -----
-    Draws the supplied pose; contact events belong in the simulation.
-    Reuse ax for frame sequences; use evenly spaced simulation times for playback
-    at a fixed frame rate, and pass the parameters actually used at each frame.
-    """
     state = np.asarray(state, dtype=float)
     foot = np.asarray(stance_position, dtype=float)
     if state.shape != (2,) or not np.all(np.isfinite(state)):

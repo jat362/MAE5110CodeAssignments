@@ -19,15 +19,10 @@ def build_lookup_table(thetadot_grid, alpha_grid, params, dt=5e-4, max_time=1.0)
                 next_thetadot[i, j] = result["thetadot_next"]
 
     return next_thetadot, reached_roa
-    """
-    Returns:
-      next_thetadot : (n_thetadot, n_alpha) array, thetadot_{k+1} for
-                       each (state, action) pair, or np.nan if that
-                       action lands directly in the RoA this step.
-      reached_roa    : (n_thetadot, n_alpha) boolean array
-    """
+
 
 def backward_induction(thetadot_grid, next_thetadot, reached_roa, max_steps=15):
+
     n_theta, n_alpha = next_thetadot.shape
     steps_to_stand = np.full(n_theta, np.inf)
     best_alpha_idx = np.full(n_theta, -1, dtype=int)
@@ -70,53 +65,173 @@ def backward_induction(thetadot_grid, next_thetadot, reached_roa, max_steps=15):
             break
 
     return steps_to_stand, best_alpha_idx
-    """
-    Returns:
-      steps_to_stand : (n_thetadot,) int array, np.inf if unreachable
-                        within max_steps
-      best_alpha_idx : (n_thetadot,) int array, index into alpha_grid
-                        of the best action at that state (-1 if none)
-    """
 
-def grid_resolution_test(params, n_values, alpha_grid_size=15,
-                          thetadot_bound=None, dt=5e-4):
-    g, l = params["gravity"], params["length"]
+
+def verify_policy_against_continuous_dynamics(thetadot_grid, alpha_grid, best_alpha_idx,
+                                               steps_to_stand, params, test_velocities,
+                                               dt=1e-4, max_steps_cap=12):
+    results = []
+    for v0 in test_velocities:
+        idx0 = int(np.argmin(np.abs(thetadot_grid - v0)))
+        predicted_steps = steps_to_stand[idx0]
+
+        thetadot_k = v0
+        actual_steps = 0
+        reached = False
+        for _ in range(max_steps_cap):
+            idx = int(np.argmin(np.abs(thetadot_grid - thetadot_k)))
+            j = best_alpha_idx[idx]
+            if j < 0:
+                break
+            alpha = alpha_grid[j]
+            result = simulate_step(thetadot_k, alpha, params, dt=dt)
+            actual_steps += 1
+            if result["reached_roa"]:
+                reached = True
+                break
+            if result["thetadot_next"] is None:
+                break
+            thetadot_k = result["thetadot_next"]
+
+        results.append({
+            "v0": v0, "predicted_steps": predicted_steps,
+            "actual_steps": actual_steps if reached else np.inf,
+            "reached": reached,
+        })
+
+    n = len(results)
+    fail_rate = sum(not r["reached"] for r in results) / n
+    broken_promise_rate = sum(
+        r["reached"] and r["actual_steps"] > r["predicted_steps"] for r in results
+    ) / n
+    exact_match_rate = sum(
+        r["reached"] and r["actual_steps"] == r["predicted_steps"] for r in results
+    ) / n
+    worst_actual = max((r["actual_steps"] for r in results if r["reached"]), default=np.inf)
+
+    return {
+        "fail_rate": fail_rate, "broken_promise_rate": broken_promise_rate,
+        "exact_match_rate": exact_match_rate, "worst_actual": worst_actual,
+        "details": results,
+    }
+
+
+def grid_resolution_test(
+    params,
+    n_values,
+    alpha_grid_size=15,
+    thetadot_bound=None,
+    dt=5e-4,
+    n_test_points=100,
+):
+
+    g = params["gravity"]
+    l = params["length"]
+
     if thetadot_bound is None:
         thetadot_bound = np.sqrt(2 * g / l)
 
-    alpha_grid = np.linspace(np.pi / 8, np.pi / 7, alpha_grid_size)
+    alpha_grid = np.linspace(
+        np.pi / 8,
+        np.pi / 7,
+        alpha_grid_size,
+    )
 
-    results = {}
+    # Use fixed off-grid verification points distributed across
+    # the full angular-velocity range
+    dv_test = thetadot_bound / n_test_points
+
+    test_velocities = (
+        np.arange(n_test_points) + 0.5
+    ) * dv_test
+
+    print(
+        f"\nTesting {n_test_points} fixed off-grid velocities "
+        f"from {test_velocities[0]:.3f} to "
+        f"{test_velocities[-1]:.3f} rad/s\n"
+    )
+
+    header = (
+        f"{'n':>5}"
+        f"{'fail':>12}"
+        f"{'broken':>12}"
+        f"{'exact':>12}"
+        f"{'max error':>12}"
+        f"{'worst steps':>14}"
+    )
+
+    print(header)
+    print("-" * len(header))
+
+    summary = {}
+
     for n in n_values:
-        thetadot_grid = np.linspace(0.0, thetadot_bound, n)
-        next_thetadot, reached_roa = build_lookup_table(thetadot_grid, alpha_grid, params, dt=dt)
-        steps, _ = backward_induction(thetadot_grid, next_thetadot, reached_roa)
-        results[n] = (thetadot_grid, steps)
-        n_reachable = np.sum(np.isfinite(steps))
-        print(f"n={n}: {n_reachable}/{n} states reach standing within max_steps")
 
-    # compare each resolution against the finest one, interpolated
-    finest_n = max(n_values)
-    finest_grid, finest_steps = results[finest_n]
-    finite_mask = np.isfinite(finest_steps)
-    finest_interp_grid = finest_grid[finite_mask]
-    finest_interp_vals = finest_steps[finite_mask]
+        thetadot_grid = np.linspace(
+            0.0,
+            thetadot_bound,
+            n,
+        )
 
-    print(f"\nComparing against finest resolution (n={finest_n}):")
-    for n in n_values:
-        if n == finest_n:
-            continue
-        grid, steps = results[n]
-        finite = np.isfinite(steps)
-        if not finite.any() or len(finest_interp_grid) < 2:
-            print(f"n={n}: not enough data to compare")
-            continue
-        interp_at_grid = np.interp(grid[finite], finest_interp_grid, finest_interp_vals)
-        diffs = np.abs(steps[finite] - interp_at_grid)
-        print(f"n={n}: max |step difference| vs finest = {diffs.max():.2f}, "
-              f"mean = {diffs.mean():.2f}")
+        next_thetadot, reached_roa = build_lookup_table(
+            thetadot_grid,
+            alpha_grid,
+            params,
+            dt=dt,
+        )
 
-    return results
+        steps, best_alpha_idx = backward_induction(
+            thetadot_grid,
+            next_thetadot,
+            reached_roa,
+        )
+
+        verification = verify_policy_against_continuous_dynamics(
+            thetadot_grid,
+            alpha_grid,
+            best_alpha_idx,
+            steps,
+            params,
+            test_velocities,
+        )
+
+        # Calculate the maximum difference between the predicted
+        # and actual number of steps.
+        step_errors = []
+
+        for result in verification["details"]:
+
+            if (
+                result["reached"]
+                and np.isfinite(result["predicted_steps"])
+                and np.isfinite(result["actual_steps"])
+            ):
+                error = abs(
+                    result["actual_steps"]
+                    - result["predicted_steps"]
+                )
+
+                step_errors.append(error)
+
+        if len(step_errors) > 0:
+            max_abs_error = np.max(step_errors)
+        else:
+            max_abs_error = np.inf
+
+        verification["max_abs_error"] = max_abs_error
+
+        summary[n] = verification
+
+        print(
+            f"{n:>5}"
+            f"{verification['fail_rate']:>12.1%}"
+            f"{verification['broken_promise_rate']:>12.1%}"
+            f"{verification['exact_match_rate']:>12.1%}"
+            f"{max_abs_error:>12.1f}"
+            f"{verification['worst_actual']:>14}"
+        )
+
+    return summary
 
 
 def plot_steps_to_stand(thetadot_grid, steps_to_stand, fname):
@@ -127,9 +242,9 @@ def plot_steps_to_stand(thetadot_grid, steps_to_stand, fname):
     if (~finite).any():
         ax.scatter(thetadot_grid[~finite], np.zeros(np.sum(~finite)) - 1, c="#c0392b",
                    marker="x", s=40, label="unreachable within max_steps")
-    ax.set_xlabel(r"$\dot\theta_k$ at $\theta=0$ crossing (rad/s)")
-    ax.set_ylabel("steps to reach standing RoA")
-    ax.set_title("Footsteps needed to reach standstill, by initial velocity")
+    ax.set_xlabel(r"$\dot\theta$ at $\theta=0$ crossing (rad/s)")
+    ax.set_ylabel("Steps to reach standing RoA")
+    ax.set_title("Steps to Standstill")
     ax.legend()
     ax.grid(alpha=0.3)
     fig.tight_layout()
@@ -144,9 +259,13 @@ if __name__ == "__main__":
     params["roa_thetadots"] = roa_data["thetadots"]
     params["roa_converged"] = roa_data["converged"]
 
-    # grid resolution test 
-    print("=== Grid resolution test ===")
-    grid_resolution_test(params, n_values=[8, 15, 25, 40])
+    # grid resolution test
+    print("=== Grid resolution test (verified against real continuous dynamics) ===")
+    resolution_results = grid_resolution_test(
+        params,
+        n_values=[10, 15, 20, 25, 30, 35, 40, 50, 60, 70, 80, 90, 100],
+        n_test_points=100,
+    )
 
     # final table at chosen resolution
     print("\n=== Building final lookup table ===")

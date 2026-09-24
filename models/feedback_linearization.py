@@ -90,8 +90,7 @@ def fit_conservative_rectangle(thetas, thetadots, converged):
             break
         thetadot_max = min(thetadot_max, abs(thetadots[i]))
 
-    # shrink until the full rectangle is verified converged (handles
-    # non-convex/irregular regions the cross-shaped scan above would miss)
+    # shrink until the full rectangle is verified converged 
     theta_mask = np.abs(thetas) <= theta_max
     thetadot_mask = np.abs(thetadots) <= thetadot_max
     while theta_max > 0 or thetadot_max > 0:
@@ -124,7 +123,7 @@ def plot_roa(thetas, thetadots, converged, fname):
     ax.axvline(0, color="k", lw=0.5)
     ax.set_xlabel(r"$\theta_0$ (rad)")
     ax.set_ylabel(r"$\dot\theta_0$ (rad/s)")
-    ax.set_title("Ankle controller Region of Attraction\n(note: a tilted band, not a box -- see roa_event_guard docstring)")
+    ax.set_title("Ankle controller Region of Attraction")
     fig.tight_layout()
     fig.savefig(fname, dpi=150)
     plt.close(fig)
@@ -152,8 +151,7 @@ if __name__ == "__main__":
     plot_roa(thetas, thetadots, converged, "figures/roa_controller.png")
     print("Saved figures/roa_controller.png")
 
-    # Saved grid as npz so assignment_2.py can load and
-    # populate params["roa_thetas"]/["roa_thetadots"]/["roa_converged"]
+    # Saved grid as npz so assignment_2.py can load and populate params 
     # for roa_event_guard without recomputing the search every run
     np.savez("figures/roa_controller_grid.npz",
              thetas=thetas, thetadots=thetadots, converged=converged)

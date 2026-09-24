@@ -38,6 +38,6 @@ def simulate_step(thetadot_k, alpha, params, dt=1e-4, max_time=2.0):
         state = next_state
         t += dt
 
-    # failure case: walker never completed a step, never crossed theta = 0, 
+    # failure case: walker never completed a step, never crossed theta = 0,
     # never reached the RoA within the allowed simulation time
     return {"thetadot_next": None, "reached_roa": False, "n_impacts": n_impacts}
