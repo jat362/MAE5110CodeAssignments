@@ -6,7 +6,6 @@ from matplotlib.animation import FuncAnimation, PillowWriter
 
 from models import inverted_pendulum_walker as model
 
-# Fixed controls for this visualization example.
 params = {
     "gravity": 9.81,  # m/s^2
     "length": 1.0,  # m
@@ -27,7 +26,7 @@ state_traj = np.zeros((2, n_timesteps))
 state_traj[:, 0] = initial_state
 completed_steps = 0
 
-# Simulation loop. Replace this Euler step with your own integrator as needed.
+# simulation loop
 for step, t in enumerate(time_traj[:-1]):
     state = state_traj[:, step]
     next_state = state + timestep * model.dynamics(t, state, params)
@@ -47,13 +46,13 @@ fig, ax = plt.subplots(figsize=(8, 5), layout="constrained")
 
 
 def draw_frame(index):
-    # The massless swing leg is repositioned instantaneously at each impact.
+    # massless swing leg is repositioned instantaneously at each impact
     model.visualize(state_traj[:, index], params, ax=ax)
     ax.set_title(f"t = {time_traj[index]:.2f} s")
 
 
-# Simulate at a small timestep, but render only 25 frames per second.
-fps = 25
+# simulate at a small timestep (10 frames/sec)
+fps = 10
 frame_stride = round(1 / (fps * timestep))
 frame_indices = list(range(0, time_traj.size, frame_stride))
 if frame_indices[-1] != time_traj.size - 1:
@@ -66,7 +65,5 @@ output = Path("output/assignment_2")
 output.mkdir(parents=True, exist_ok=True)
 animation.save(output / "walker.gif", writer=PillowWriter(fps=fps))
 
-# To save an MP4 instead, install FFmpeg and use:
-# animation.save(output / "walker.mp4", writer="ffmpeg", fps=fps)
 print(f"Saved {output / 'walker.gif'} ({completed_steps} footstrikes).")
 plt.show()
