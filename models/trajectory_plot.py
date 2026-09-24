@@ -245,7 +245,7 @@ def trace_fixed_sequence_trajectory(thetadot_k0, alpha_sequence, params, dt=1e-4
         "reached_roa": reached_roa,
     }
 
-
+# overlay plots
 def plot_trajectory_comparison(traj_a, label_a, traj_b, label_b, title, fname):
     color_a, color_b = "#682bbe", "#57e391"
     fig, axs = plt.subplots(3, 1, figsize=(8, 7), sharex=True)

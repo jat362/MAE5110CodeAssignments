@@ -5,11 +5,11 @@ import numpy as np
 def generate_params():
     params = {
         "gravity": 9.81,  
-        "length": 1.0,  
+        "length": 1.0,  # m
         "mass": 1.0,  # kg
         "incline": 0.06,  # rad
         "angle_of_attack": np.pi / 8,  # half-angle between legs (rad), u2
-        "ankle_torque": 0.0,  # ankle torque (Nm), u1, default off
+        "ankle_torque": 0.0,  # ankle torque (Nm), default off
     }
     return params
 
