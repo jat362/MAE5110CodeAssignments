@@ -1,9 +1,9 @@
-def explicit_euler(dynamics, t, state, params, dt):
+def explicit_euler(dynamics, t, state, dt, params):
     """Simple explicit Euler integrator."""
     return state + dt * dynamics(t, state, params)
 
 
-def rk4(dynamics, t, state, params, dt):
+def rk4(dynamics, t, state, dt, params):
     """Fourth-order Runge–Kutta integrator."""
     k1 = dynamics(t, state, params)
     k2 = dynamics(t + dt/2, state + dt/2 * k1, params)

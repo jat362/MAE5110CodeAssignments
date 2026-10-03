@@ -13,6 +13,10 @@ def generate_params():
     }
     return params
 
+def generate_initial_condition():
+    theta_0 = 0.0
+    theta_dot_0 = 0.0
+    return np.array([theta_0, theta_dot_0])
 
 def dynamics(t, state, params):
     gravity = params["gravity"]
